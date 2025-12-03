@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CompanyCard } from '@/components/CompanyCard';
+import CompanyCard from '@/components/CompanyCard';
 import { IndustryFilter } from '@/components/IndustryFilter';
 import { Company, Industry } from '@/types';
-import { getCompanies, getCurrentUser } from '@/lib/api';
+import { getCompanies, initializeMockData, getCurrentUser } from '@/lib/mockData';
 import { useRouter } from 'next/navigation';
+import { Typography, Row, Col, Empty, Space } from 'antd';
+
+const { Title, Paragraph } = Typography;
 
 export default function Home() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -15,18 +18,18 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    // 먼저 mock 데이터 초기화
+    initializeMockData();
+    
     // 인증 상태 확인
     const user = getCurrentUser();
     setIsAuthenticated(user?.isVerified || false);
 
-    // 회사 목록 로드
-    const loadCompanies = async () => {
-      const data = getCompanies();
-      setCompanies(data);
-      setFilteredCompanies(data);
-    };
-
-    loadCompanies();
+    // 회사 목록 로드 (초기화 후에 호출)
+    const data = getCompanies();
+    console.log('Loaded companies:', data.length, data); // 디버깅용
+    setCompanies(data);
+    setFilteredCompanies(data);
   }, []);
 
   useEffect(() => {
@@ -47,41 +50,45 @@ export default function Home() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          MeetupDay
-        </h1>
-        <p className="text-lg text-gray-600">
-          스타트업 간 협업과 밋업을 위한 B2B 매칭 플랫폼
-        </p>
-      </div>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px', background:'#f7f9fc', borderRadius:'12px' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%', marginBottom: '32px' }}>
+        <div>
+          <Title level={1} style={{ margin: 0, marginBottom: '12px', fontSize: '36px', fontWeight: 700, color:'#2563eb' }}>
+            MeetupDay
+          </Title>
+          <Paragraph style={{ fontSize: '18px', color: '#6b7280', margin: 0 }}>
+            스타트업 간 협업과 밋업을 위한 B2B 매칭 플랫폼
+          </Paragraph>
+        </div>
 
-      <IndustryFilter
-        selectedIndustry={selectedIndustry}
-        onIndustryChange={setSelectedIndustry}
-      />
+        <IndustryFilter
+          selectedIndustry={selectedIndustry}
+          onIndustryChange={setSelectedIndustry}
+        />
+      </Space>
 
-      <div className="mt-8">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+      <div style={{ marginTop: '32px' }}>
+        <Title level={2} style={{ marginBottom: '24px', fontSize: '24px', fontWeight: 600, color:'#155cc8', letterSpacing:'-1px' }}>
           {selectedIndustry === 'all' ? '전체 회사' : `${selectedIndustry} 회사`} ({filteredCompanies.length})
-        </h2>
+        </Title>
 
         {filteredCompanies.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">등록된 회사가 없습니다.</p>
-          </div>
+          <Empty 
+            description="등록된 회사가 없습니다." 
+            style={{ padding: '48px 0' }}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Row gutter={[24, 24]}>
             {filteredCompanies.map((company) => (
-              <CompanyCard
-                key={company.id}
-                company={company}
-                onClick={() => handleCompanyClick(company)}
-                isClickable={isAuthenticated}
-              />
+              <Col xs={24} sm={12} lg={8} key={company.id}>
+                <CompanyCard
+                  company={company}
+                  onClick={() => handleCompanyClick(company)}
+                  isClickable={isAuthenticated}
+                />
+              </Col>
             ))}
-          </div>
+          </Row>
         )}
       </div>
     </div>

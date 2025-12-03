@@ -5,7 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { Company, Industry } from '@/types';
 import { getCompanyById, getCurrentUser, canCreateMeetingRequest, incrementMonthlyRequestCount, createMeetingRequest, getCompanyByUserId } from '@/lib/api';
 import { MeetingCalendar } from '@/components/MeetingCalendar';
-import { Building2, Users, Code, Globe, Mail } from 'lucide-react';
+import { Card, Tag, Space, Typography, Avatar, Button, Divider, Row, Col, Alert, Descriptions } from 'antd';
+import { UserOutlined, CodeOutlined, GlobalOutlined, BuildOutlined, CalendarOutlined } from '@ant-design/icons';
+import { message } from 'antd';
+
+const { Title, Paragraph, Text } = Typography;
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -28,7 +32,7 @@ export default function CompanyDetailPage() {
   const handleRequestMeeting = () => {
     const user = getCurrentUser();
     if (!user || !user.isVerified) {
-      alert('사업자 인증이 필요합니다.');
+      message.warning('사업자 인증이 필요합니다.');
       router.push('/auth/login');
       return;
     }
@@ -43,12 +47,12 @@ export default function CompanyDetailPage() {
 
   const handleSubmitMeetingRequest = () => {
     if (selectedDates.length === 0) {
-      setError('최소 1개의 날짜를 선택해주세요.');
+      message.error('최소 1개의 날짜를 선택해주세요.');
       return;
     }
 
     if (selectedDates.length > 3) {
-      setError('최대 3개의 날짜만 선택 가능합니다.');
+      message.error('최대 3개의 날짜만 선택 가능합니다.');
       return;
     }
 
@@ -58,7 +62,7 @@ export default function CompanyDetailPage() {
     // 사용자의 회사 찾기
     const userCompany = getCompanyByUserId(user.id);
     if (!userCompany) {
-      setError('회사 등록이 필요합니다. 먼저 회사를 등록해주세요.');
+      message.error('회사 등록이 필요합니다. 먼저 회사를 등록해주세요.');
       router.push('/companies/register');
       return;
     }
@@ -66,123 +70,163 @@ export default function CompanyDetailPage() {
     createMeetingRequest(userCompany.id, company.id, selectedDates);
     incrementMonthlyRequestCount(user.id);
     
-    alert('밋업 매칭 신청이 완료되었습니다.');
+    message.success('밋업 매칭 신청이 완료되었습니다.');
     router.push('/dashboard');
   };
 
   if (!company) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>로딩 중...</p>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+        <Card>
+          <Text>로딩 중...</Text>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{company.name}</h1>
-            <span className="bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded">
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+      <Card>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {/* 회사 헤더 */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '24px' }}>
+            {company.logo ? (
+              <Avatar
+                size={80}
+                src={company.logo}
+                icon={<BuildOutlined />}
+                style={{ flexShrink: 0 }}
+              />
+            ) : (
+              <Avatar
+                size={80}
+                icon={<BuildOutlined />}
+                style={{ flexShrink: 0, backgroundColor: '#2563eb' }}
+              />
+            )}
+            <div style={{ flex: 1 }}>
+              <Title level={1} style={{ margin: 0, marginBottom: '8px' }}>
+                {company.name}
+              </Title>
+              <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
               {company.industry}
-            </span>
+              </Tag>
           </div>
         </div>
 
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">회사 소개</h2>
-          <p className="text-gray-600 leading-relaxed">{company.description}</p>
-        </div>
+          <Divider />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="flex items-center text-gray-700">
-            <Users className="w-5 h-5 mr-2 text-gray-500" />
-            <span className="font-medium">회사 규모:</span>
-            <span className="ml-2">{company.companySize}</span>
+          {/* 회사 소개 */}
+          <div>
+            <Title level={3} style={{ marginBottom: '12px' }}>회사 소개</Title>
+            <Paragraph style={{ fontSize: '16px', lineHeight: '1.8', color: '#4b5563' }}>
+              {company.description}
+            </Paragraph>
           </div>
+
+          {/* 회사 정보 */}
+          <div>
+            <Title level={3} style={{ marginBottom: '12px' }}>회사 정보</Title>
+            <Descriptions column={{ xs: 1, sm: 2 }} bordered>
+              {company.companySize && (
+                <Descriptions.Item label={<><UserOutlined /> 회사 규모</>}>
+                  {company.companySize}
+                </Descriptions.Item>
+              )}
           {company.website && (
-            <div className="flex items-center text-gray-700">
-              <Globe className="w-5 h-5 mr-2 text-gray-500" />
+                <Descriptions.Item label={<><GlobalOutlined /> 웹사이트</>}>
               <a
                 href={company.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                웹사이트 방문
-              </a>
+                    style={{ color: '#2563eb' }}
+                  >
+                    {company.website}
+                  </a>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+          </div>
+
+          {/* 대표 기술 */}
+          {company.mainTechnologies.length > 0 && (
+            <div>
+              <Title level={3} style={{ marginBottom: '12px' }}>
+                <CodeOutlined /> 대표 기술
+              </Title>
+              <Space wrap>
+                {company.mainTechnologies.map((tech, index) => (
+                  <Tag key={index} color="default" style={{ fontSize: '14px', padding: '4px 12px' }}>
+                    {tech}
+                  </Tag>
+                ))}
+              </Space>
             </div>
           )}
-        </div>
 
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-3 flex items-center">
-            <Code className="w-5 h-5 mr-2" />
-            대표 기술
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {company.mainTechnologies.map((tech, index) => (
-              <span
-                key={index}
-                className="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-        </div>
+          <Divider />
 
+          {/* 밋업 매칭 신청 */}
         {showCalendar ? (
-          <div className="mt-8 border-t pt-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              밋업 일정 선택 (최대 3개)
-            </h2>
+            <div>
+              <Title level={3} style={{ marginBottom: '16px' }}>
+                <CalendarOutlined /> 밋업 일정 선택 (최대 3개)
+              </Title>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
+                <Alert
+                  message={error}
+                  type="error"
+                  showIcon
+                  closable
+                  onClose={() => setError('')}
+                  style={{ marginBottom: '16px' }}
+                />
             )}
             <MeetingCalendar
               selectedDates={selectedDates}
               onDatesChange={setSelectedDates}
               maxSelections={3}
             />
-            <div className="mt-6 flex gap-4">
-              <button
-                onClick={handleSubmitMeetingRequest}
-                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
+              <Space style={{ marginTop: '24px' }}>
+                <Button type="primary" size="large" onClick={handleSubmitMeetingRequest}>
                 신청하기
-              </button>
-              <button
+                </Button>
+                <Button
+                  size="large"
                 onClick={() => {
                   setShowCalendar(false);
                   setSelectedDates([]);
                   setError('');
                 }}
-                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 transition-colors"
               >
                 취소
-              </button>
-            </div>
+                </Button>
+              </Space>
           </div>
         ) : (
-          <div className="mt-8 border-t pt-8">
-            <button
+            <div>
+              <Button
+                type="primary"
+                size="large"
+                icon={<CalendarOutlined />}
               onClick={handleRequestMeeting}
-              className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors font-medium"
             >
               밋업 매칭 신청하기
-            </button>
+              </Button>
             {error && (
-              <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
+                <Alert
+                  message={error}
+                  type="error"
+                  showIcon
+                  closable
+                  onClose={() => setError('')}
+                  style={{ marginTop: '16px' }}
+                />
             )}
           </div>
         )}
-      </div>
+        </Space>
+      </Card>
     </div>
   );
 }

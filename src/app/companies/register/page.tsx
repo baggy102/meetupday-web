@@ -4,189 +4,190 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, createCompany } from '@/lib/api';
 import { Industry } from '@/types';
+import { Form, Input, Select, Button, Card, Upload, message, Space, Typography } from 'antd';
+import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
+import type { UploadFile } from 'antd';
+
+const { TextArea } = Input;
+const { Title } = Typography;
+const { Dragger } = Upload;
 
 const industries: Industry[] = ['IT', '마케팅', '헬스케어', 'AI'];
 
 export default function RegisterCompanyPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: '',
-    industry: '' as Industry | '',
-    description: '',
-    mainTechnologies: '',
-    companySize: '',
-    website: '',
-  });
-  const [error, setError] = useState('');
+  const [form] = Form.useForm();
+  const [logoFile, setLogoFile] = useState<UploadFile | null>(null);
+  const [logoBase64, setLogoBase64] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
+  const handleSubmit = async (values: any) => {
     const user = getCurrentUser();
     if (!user || !user.isVerified) {
-      setError('사업자 인증이 필요합니다.');
+      message.error('사업자 인증이 필요합니다.');
       return;
     }
 
-    if (!formData.name || !formData.industry || !formData.description) {
-      setError('필수 항목을 모두 입력해주세요.');
-      return;
-    }
-
-    const technologies = formData.mainTechnologies
-      .split(',')
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+    const technologies = values.mainTechnologies
+      ? values.mainTechnologies.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0)
+      : [];
 
     const company = createCompany({
       userId: user.id,
-      name: formData.name,
-      industry: formData.industry as Industry,
-      description: formData.description,
+      name: values.name,
+      industry: values.industry,
+      description: values.description,
       mainTechnologies: technologies,
-      companySize: formData.companySize,
-      website: formData.website || undefined,
+      companySize: values.companySize || '',
+      website: values.website || undefined,
+      logo: logoBase64 || undefined,
     });
 
-    alert('회사 등록이 완료되었습니다.');
+    message.success('회사 등록이 완료되었습니다.');
     router.push(`/companies/${company.id}`);
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleLogoChange = (info: any) => {
+    const file = info.file;
+    
+    if (file.status === 'removed') {
+      setLogoFile(null);
+      setLogoBase64('');
+      return;
+    }
+
+    if (file.originFileObj) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setLogoBase64(base64String);
+      };
+      reader.readAsDataURL(file.originFileObj);
+      setLogoFile(file);
+    }
+  };
+
+  const beforeUpload = (file: File) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('이미지 파일만 업로드 가능합니다.');
+      return false;
+    }
+    const isLt2M = file.size / 1024 / 1024 < 2;
+    if (!isLt2M) {
+      message.error('이미지는 2MB 이하여야 합니다.');
+      return false;
+    }
+    return false; // 자동 업로드 방지
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">회사 등록</h1>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
+      <Card>
+        <Title level={2} style={{ marginBottom: '24px' }}>회사 등록</Title>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          requiredMark={false}
+        >
+          <Form.Item
+            label="회사 로고"
+            name="logo"
+          >
+            <Dragger
+              name="logo"
+              accept="image/*"
+              maxCount={1}
+              beforeUpload={beforeUpload}
+              onChange={handleLogoChange}
+              fileList={logoFile ? [logoFile] : []}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text">클릭하거나 파일을 드래그하여 업로드</p>
+              <p className="ant-upload-hint">
+                회사 로고 또는 마크를 업로드하세요 (최대 2MB)
+              </p>
+            </Dragger>
+          </Form.Item>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              회사명 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="name"
+          <Form.Item
+            label="회사명"
               name="name"
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.name}
-              onChange={handleChange}
-            />
-          </div>
+            rules={[{ required: true, message: '회사명을 입력해주세요.' }]}
+          >
+            <Input placeholder="회사명을 입력하세요" size="large" />
+          </Form.Item>
 
-          <div>
-            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
-              산업 분야 <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="industry"
+          <Form.Item
+            label="산업 분야"
               name="industry"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.industry}
-              onChange={handleChange}
+            rules={[{ required: true, message: '산업 분야를 선택해주세요.' }]}
             >
-              <option value="">선택해주세요</option>
+            <Select placeholder="산업 분야를 선택하세요" size="large">
               {industries.map((industry) => (
-                <option key={industry} value={industry}>
+                <Select.Option key={industry} value={industry}>
                   {industry}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </Form.Item>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              회사 소개 <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="description"
+          <Form.Item
+            label="회사 소개"
               name="description"
-              required
+            rules={[{ required: true, message: '회사 소개를 입력해주세요.' }]}
+          >
+            <TextArea 
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.description}
-              onChange={handleChange}
+              placeholder="회사에 대해 설명해주세요"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <label htmlFor="mainTechnologies" className="block text-sm font-medium text-gray-700 mb-2">
-              대표 기술
-            </label>
-            <input
-              id="mainTechnologies"
+          <Form.Item
+            label="대표 기술"
               name="mainTechnologies"
-              type="text"
+          >
+            <Input 
               placeholder="예: React, Node.js, TypeScript (쉼표로 구분)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.mainTechnologies}
-              onChange={handleChange}
+              size="large"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <label htmlFor="companySize" className="block text-sm font-medium text-gray-700 mb-2">
-              회사 규모
-            </label>
-            <input
-              id="companySize"
+          <Form.Item
+            label="회사 규모"
               name="companySize"
-              type="text"
+          >
+            <Input 
               placeholder="예: 10-50명"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.companySize}
-              onChange={handleChange}
+              size="large"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
-              웹사이트
-            </label>
-            <input
-              id="website"
+          <Form.Item
+            label="웹사이트"
               name="website"
-              type="url"
+          >
+            <Input 
               placeholder="https://example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.website}
-              onChange={handleChange}
+              size="large"
             />
-          </div>
+          </Form.Item>
 
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors font-medium"
-            >
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" size="large">
               등록하기
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-md hover:bg-gray-300 transition-colors font-medium"
-            >
+              </Button>
+              <Button onClick={() => router.back()} size="large">
               취소
-            </button>
-          </div>
-        </form>
-      </div>
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
   );
 }
