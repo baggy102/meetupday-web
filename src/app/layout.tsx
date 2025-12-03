@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AntdProvider } from "@/components/AntdProvider";
+import { SearchProvider } from "@/components/SearchContext";
 
 export const metadata: Metadata = {
   title: "MeetupDay - B2B 매칭 플랫폼",
@@ -19,10 +20,12 @@ export default function RootLayout({
       <body className="antialiased">
         <AntdProvider>
           <AuthProvider>
-            <Navbar />
-            <main className="min-h-screen" style={{ background: '#ffffff' }}>
-              {children}
-            </main>
+            <SearchProvider>
+              <Navbar />
+              <main className="min-h-screen" style={{ background: '#ffffff' }}>
+                {children}
+              </main>
+            </SearchProvider>
           </AuthProvider>
         </AntdProvider>
       </body>

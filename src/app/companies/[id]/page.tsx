@@ -2,22 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Company, Industry } from '@/types';
+import { Company } from '@/types';
 import { getCompanyById, getCurrentUser, canCreateMeetingRequest, incrementMonthlyRequestCount, createMeetingRequest, getCompanyByUserId } from '@/lib/api';
-import { MeetingCalendar } from '@/components/MeetingCalendar';
-import { Card, Tag, Space, Typography, Avatar, Button, Divider, Row, Col, Alert, Descriptions } from 'antd';
-import { UserOutlined, CodeOutlined, GlobalOutlined, BuildOutlined, CalendarOutlined } from '@ant-design/icons';
+import { CompanyHero } from '@/components/CompanyHero';
+import { CompanyTabs } from '@/components/CompanyTabs';
+import { CompanySummaryCard } from '@/components/CompanySummaryCard';
+import { MeetingRequestModal } from '@/components/MeetingRequestModal';
+import { Typography, Row, Col, Alert } from 'antd';
 import { message } from 'antd';
 
-const { Title, Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 export default function CompanyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const companyId = params.id as string;
@@ -39,23 +50,15 @@ export default function CompanyDetailPage() {
 
     if (!canCreateMeetingRequest(user.id)) {
       setError('월 5회 제한에 도달했습니다. 다음 달에 다시 시도해주세요.');
+      message.error('월 5회 제한에 도달했습니다. 다음 달에 다시 시도해주세요.');
       return;
     }
 
-    setShowCalendar(true);
+    setShowModal(true);
+    setError('');
   };
 
-  const handleSubmitMeetingRequest = () => {
-    if (selectedDates.length === 0) {
-      message.error('최소 1개의 날짜를 선택해주세요.');
-      return;
-    }
-
-    if (selectedDates.length > 3) {
-      message.error('최대 3개의 날짜만 선택 가능합니다.');
-      return;
-    }
-
+  const handleSubmitMeetingRequest = (dates: Date[], purpose: string) => {
     const user = getCurrentUser();
     if (!user || !company) return;
 
@@ -67,7 +70,7 @@ export default function CompanyDetailPage() {
       return;
     }
 
-    createMeetingRequest(userCompany.id, company.id, selectedDates);
+    createMeetingRequest(userCompany.id, company.id, dates);
     incrementMonthlyRequestCount(user.id);
     
     message.success('밋업 매칭 신청이 완료되었습니다.');
@@ -76,157 +79,69 @@ export default function CompanyDetailPage() {
 
   if (!company) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-        <Card>
-          <Text>로딩 중...</Text>
-        </Card>
+      <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px' }}>
+        <Text>로딩 중...</Text>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-      <Card>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* 회사 헤더 */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '24px' }}>
-            {company.logo ? (
-              <Avatar
-                size={80}
-                src={company.logo}
-                icon={<BuildOutlined />}
-                style={{ flexShrink: 0 }}
-              />
-            ) : (
-              <Avatar
-                size={80}
-                icon={<BuildOutlined />}
-                style={{ flexShrink: 0, backgroundColor: '#2563eb' }}
-              />
-            )}
-            <div style={{ flex: 1 }}>
-              <Title level={1} style={{ margin: 0, marginBottom: '8px' }}>
-                {company.name}
-              </Title>
-              <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-              {company.industry}
-              </Tag>
-          </div>
-        </div>
+    <div style={{ 
+      maxWidth: '1440px', 
+      margin: '0 auto', 
+      padding: '32px 24px',
+      background: '#F8FAFC',
+      minHeight: 'calc(100vh - 64px)',
+    }}>
+      {error && (
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError('')}
+          style={{ marginBottom: '24px' }}
+        />
+      )}
 
-          <Divider />
+      {/* Hero 영역 */}
+      <CompanyHero company={company} onMeetingRequest={handleRequestMeeting} />
 
-          {/* 회사 소개 */}
-          <div>
-            <Title level={3} style={{ marginBottom: '12px' }}>회사 소개</Title>
-            <Paragraph style={{ fontSize: '16px', lineHeight: '1.8', color: '#4b5563' }}>
-              {company.description}
-            </Paragraph>
-          </div>
+      {/* 본문 레이아웃: 좌측 상세 / 우측 요약 */}
+      <Row gutter={[24, 24]}>
+        {/* 좌측: 상세 정보 (65%) */}
+        <Col xs={24} lg={16}>
+          <CompanyTabs company={company} />
+        </Col>
 
-          {/* 회사 정보 */}
-          <div>
-            <Title level={3} style={{ marginBottom: '12px' }}>회사 정보</Title>
-            <Descriptions column={{ xs: 1, sm: 2 }} bordered>
-              {company.companySize && (
-                <Descriptions.Item label={<><UserOutlined /> 회사 규모</>}>
-                  {company.companySize}
-                </Descriptions.Item>
-              )}
-          {company.website && (
-                <Descriptions.Item label={<><GlobalOutlined /> 웹사이트</>}>
-              <a
-                href={company.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                    style={{ color: '#2563eb' }}
-                  >
-                    {company.website}
-                  </a>
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </div>
-
-          {/* 대표 기술 */}
-          {company.mainTechnologies.length > 0 && (
-            <div>
-              <Title level={3} style={{ marginBottom: '12px' }}>
-                <CodeOutlined /> 대표 기술
-              </Title>
-              <Space wrap>
-                {company.mainTechnologies.map((tech, index) => (
-                  <Tag key={index} color="default" style={{ fontSize: '14px', padding: '4px 12px' }}>
-                    {tech}
-                  </Tag>
-                ))}
-              </Space>
-            </div>
-          )}
-
-          <Divider />
-
-          {/* 밋업 매칭 신청 */}
-        {showCalendar ? (
-            <div>
-              <Title level={3} style={{ marginBottom: '16px' }}>
-                <CalendarOutlined /> 밋업 일정 선택 (최대 3개)
-              </Title>
-            {error && (
-                <Alert
-                  message={error}
-                  type="error"
-                  showIcon
-                  closable
-                  onClose={() => setError('')}
-                  style={{ marginBottom: '16px' }}
-                />
-            )}
-            <MeetingCalendar
-              selectedDates={selectedDates}
-              onDatesChange={setSelectedDates}
-              maxSelections={3}
+        {/* 우측: 요약 카드 (35%) - 데스크톱에서만 sticky */}
+        {!isMobile && (
+          <Col xs={24} lg={8}>
+            <CompanySummaryCard 
+              company={company} 
+              onMeetingRequest={handleRequestMeeting}
             />
-              <Space style={{ marginTop: '24px' }}>
-                <Button type="primary" size="large" onClick={handleSubmitMeetingRequest}>
-                신청하기
-                </Button>
-                <Button
-                  size="large"
-                onClick={() => {
-                  setShowCalendar(false);
-                  setSelectedDates([]);
-                  setError('');
-                }}
-              >
-                취소
-                </Button>
-              </Space>
-          </div>
-        ) : (
-            <div>
-              <Button
-                type="primary"
-                size="large"
-                icon={<CalendarOutlined />}
-              onClick={handleRequestMeeting}
-            >
-              밋업 매칭 신청하기
-              </Button>
-            {error && (
-                <Alert
-                  message={error}
-                  type="error"
-                  showIcon
-                  closable
-                  onClose={() => setError('')}
-                  style={{ marginTop: '16px' }}
-                />
-            )}
-          </div>
+          </Col>
         )}
-        </Space>
-      </Card>
+      </Row>
+
+      {/* 모바일: 요약 카드 (하단) */}
+      {isMobile && (
+        <div style={{ marginTop: '24px' }}>
+          <CompanySummaryCard 
+            company={company} 
+            onMeetingRequest={handleRequestMeeting}
+          />
+        </div>
+      )}
+
+      {/* 밋업 신청 모달 */}
+      <MeetingRequestModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleSubmitMeetingRequest}
+        companyName={company.name}
+      />
     </div>
   );
 }
