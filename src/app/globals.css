@@ -110,3 +110,15 @@ body {
   background: #1087ff;
 }
 
+/* Search 컴포넌트 높이 통일 */
+.ant-input-search .ant-input-group-addon {
+  height: 40px !important;
+}
+
+.ant-input-search .ant-input-group-addon .ant-btn {
+  height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+

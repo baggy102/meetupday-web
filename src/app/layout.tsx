@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { AuthProvider } from "@/components/AuthProvider";
+import { AntdProvider } from "@/components/AntdProvider";
+import { SearchProvider } from "@/components/SearchContext";
 
 export const metadata: Metadata = {
   title: "MeetupDay - B2B 매칭 플랫폼",
@@ -16,12 +18,16 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
-        <AuthProvider>
-          <Navbar />
-          <main className="min-h-screen bg-gray-50">
-            {children}
-          </main>
-        </AuthProvider>
+        <AntdProvider>
+          <AuthProvider>
+            <SearchProvider>
+              <Navbar />
+              <main className="min-h-screen" style={{ background: '#ffffff' }}>
+                {children}
+              </main>
+            </SearchProvider>
+          </AuthProvider>
+        </AntdProvider>
       </body>
     </html>
   );
